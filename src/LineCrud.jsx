@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from "react";
+import React, {useCallback, useReducer, useState} from "react";
 import {Row, Table, Col, Button} from "reactstrap";
 import {Form, Formik, Field} from "formik";
 import FormGroup from "reactstrap/es/FormGroup";
@@ -6,70 +6,108 @@ import Label from "reactstrap/es/Label";
 import Input from "reactstrap/es/Input";
 import {nanoid} from "nanoid";
 
-const LineCrud = () => {
-  const [list, setList] = useState([]);
-  const [item, setItem] = useState();
+const crudReducer = (state, action) => {
+  const { item, id } = action;
+  const { list } = state;
 
-  const onAdd = useCallback(() => {
-    setItem({
-      key: '', color: '', stroke: 0
-    });
-  }, []);
+  switch (action.type) {
+    case 'ADD':
+      return { ...state, item: { key: '', color: '', stroke: 1 } };
+    case 'SAVE':
+      if (!item.id) {
+        item.id = nanoid();
+        const newList = [...list, item];console.log('new list', newList);
 
-  const onSave = useCallback(item => {
-    if (!item.id) {
-      item.id = nanoid();
-      setList([...list, item]);
-    } else {
-      const index = list.findIndex(i => i.id === item.id);
-      const newList = [...list];
-      newList[index] = item;
-      setList(newList);
+        return { ...state, list: newList, item: undefined };
+      } else {
+        const index = list.findIndex(i => i.id === item.id);
+        const newList = [...list];
+        newList[index] = item;
+        return { ...state, list: newList, item: undefined };
+      }
+    case 'EDIT':
+      return { ...state, item: list.find(item => item.id === id) };
+    case 'CANCEL':
+      return { ...state, item: undefined };
+    case 'UP': {
+      const i = list.findIndex(item => item.id === id);
+      if (i > 0) {
+        const a = list[i];
+        const b = list[i - 1];
+        const newList = [...list];
+        newList[i] = b;
+        newList[i - 1] = a;
+        return {...state, list: newList};
+      }
+      return state;
     }
-    setItem(undefined);
-  }, [list]);
-
-  const onCancel = useCallback(() => setItem(undefined), []);
-
-  const onEdit = useCallback(id => {
-    const i = list.find(item => item.id === id);
-    setItem(i);
-  }, [list]);
-
-  const onUp = useCallback(id => {
-    const i = list.findIndex(item => item.id === id);
-    if (i > 0) {
-      const a = list[i];
-      const b = list[i - 1];
-      const newList = [...list];
-      newList[i] = b;
-      newList[i - 1] = a;
-      setList(newList);
+    case 'DOWN': {
+      const i = list.findIndex(item => item.id === id);
+      if (i < list.length - 1) {
+        const a = list[i];
+        const b = list[i + 1];
+        const newList = [...list];
+        newList[i] = b;
+        newList[i + 1] = a;
+        return {...state, list: newList};
+      }
+      return state;
     }
-  }, [list]);
-
-  const onDown = useCallback(id => {
-    const i = list.findIndex(item => item.id === id);
-    if (i < list.length - 1) {
-      const a = list[i];
-      const b = list[i + 1];
-      const newList = [...list];
-      newList[i] = b;
-      newList[i + 1] = a;
-      setList(newList);
-    }
-  }, [list]);
-
-  const onDelete = useCallback(id => {
-    if (window.confirm('Desea eliminar?')) {
+    case 'DELETE': {
       const i = list.findIndex(item => item.id === id);
       if (i >= 0 && i < list.length) {
         const newList = [...list];
         newList.splice(i, 1);
-        setList(newList);
+        return { ...state, list: newList };
       }
+      return state;
     }
-  }, [list]);
+    default:
+      return state;
+  }
+};
+
+const useCrud = () => {
+
+  const [state, dispatch] = useReducer(crudReducer, { list: [] });
+
+  const onAdd = useCallback(() => {
+    dispatch({ type: 'ADD' });
+  }, []);
+
+  const onSave = useCallback(item => {
+    dispatch({ type: 'SAVE', item });
+  }, []);
+
+  const onCancel = useCallback(() => dispatch({ type: 'CANCEL' }), []);
+
+  const onEdit = useCallback(id => {
+    dispatch({ type: 'EDIT', id });
+  }, []);
+
+  const onUp = useCallback(id => {
+    dispatch({ type: 'UP', id });
+
+  }, []);
+
+  const onDown = useCallback(id => {
+    dispatch({ type: 'UP', id });
+  }, []);
+
+  const onDelete = useCallback(id => {
+    if (window.confirm('Desea eliminar?')) {
+      dispatch({ type: 'DELETE', id });
+    }
+  }, []);
+
+  return { item: state.item, list: state.list, onAdd, onEdit, onUp, onDown, onSave, onCancel, onDelete };
+};
+
+const LineCrud = () => {
+
+  const { item, list, onAdd, onEdit, onUp, onDown, onSave, onCancel, onDelete } = useCrud();
+
+  console.log('list', list);
 
   return (
       <div className="m-3">
