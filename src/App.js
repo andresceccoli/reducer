@@ -4,7 +4,7 @@ import LineCrud from "./LineCrud";
 
 function App() {
   return (
-    <div className="App">
+    <div>
       <LineCrud/>
     </div>
   );
